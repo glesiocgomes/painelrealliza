@@ -1,0 +1,263 @@
+
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Vendedor - Realliza</title>
+    <style>
+      body {
+        background-color: #003c36;
+        font-family: Arial, sans-serif;
+        color: white;
+        text-align: center;
+        margin: 0;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      h2 {
+        color: #ce403e;
+      }
+      table {
+        margin: 20px auto;
+        width: 90%;
+        max-width: 900px; /* Aumenta a largura máxima para acomodar a nova coluna */
+        border-collapse: collapse;
+        background-color: white;
+        color: black;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      th, td {
+        border: 1px solid #ccc;
+        padding: 10px;
+        text-align: left;
+      }
+      th {
+        background-color: #ce403e;
+        color: white;
+        text-transform: uppercase;
+      }
+      input[type="text"], input[type="password"] { /* Estilos para o novo campo de senha */
+        padding: 8px;
+        margin-right: 10px;
+        margin-bottom: 10px; /* Espaçamento abaixo dos campos de input */
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        width: 200px;
+      }
+      button {
+        padding: 8px 15px;
+        background-color: #ce403e;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+      }
+      button:hover {
+        background-color: #a82e2c; /* Cor mais escura no hover */
+      }
+      #login, #painel {
+        background-color: rgba(255, 255, 255, 0.1); /* Fundo translúcido para as seções */
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+      }
+      .status-button {
+        background-color: #007bff; /* Cor azul para o botão de status */
+        padding: 5px 10px;
+        font-size: 14px;
+      }
+      .status-button:hover {
+        background-color: #0056b3;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Bem-vindo à Realliza Consórcios</h2>
+    <div id="login">
+      <p>Digite seu nome de agente e senha:</p>
+      <input type="text" id="agente" placeholder="Ex: Thayna" /><br>
+      <input type="password" id="senha" placeholder="Senha" /><br>
+      <button onclick="salvarAgente()">Entrar</button>
+    </div>
+
+    <div id="painel" style="display:none;">
+      <h3>Seus Leads</h3>
+      <table>
+        <thead>
+          <tr><th>Nome</th><th>Telefone</th><th>Status</th><th>Ação</th></tr>
+        </thead>
+        <tbody id="tabela-leads"></tbody>
+      </table>
+    </div>
+
+    <script>
+      // ** ESTE É O SEU URL DO GOOGLE APPS SCRIPT QUE VOCÊ FORNECEU **
+      // NÃO ALTERE ESTE VALOR, POIS JÁ ESTÁ COM O SEU URL CORRETO.
+      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwGVkcAeW2_yKYNyIlMHEUk13QtVxtlKHT2VwR2SJUf6ZHhXQN7DTTijx4lk2XAd1Qv/exec"; 
+
+      /**
+       * Salva o nome do agente e tenta mostrar o painel.
+       */
+      function salvarAgente() {
+        const agenteInput = document.getElementById("agente");
+        const senhaInput = document.getElementById("senha");
+        const agente = agenteInput.value.trim();
+        const senha = senhaInput.value.trim();
+
+        if (agente && senha) {
+          localStorage.setItem("agente", agente);
+          mostrarPainel(agente, senha); 
+        } else {
+          mostrarMensagem("Por favor, digite seu nome de agente e senha para entrar.");
+          if (!agente) agenteInput.focus();
+          else senhaInput.focus();
+        }
+      }
+
+      /**
+       * Exibe o painel e carrega os leads do Google Apps Script.
+       * @param {string} agente - O nome do agente para filtrar os leads.
+       * @param {string} senha - A senha do agente para autenticação.
+       */
+      function mostrarPainel(agente, senha) {
+        document.getElementById("login").style.display = "none";
+        document.getElementById("painel").style.display = "block";
+
+        const url = `${APPS_SCRIPT_URL}?agente=${encodeURIComponent(agente)}&senha=${encodeURIComponent(senha)}`;
+
+        fetch(url)
+          .then(res => {
+            if (!res.ok) { 
+              throw new Error(`Erro na rede ou servidor: ${res.status} ${res.statusText}`);
+            }
+            return res.json();
+          })
+          .then(data => {
+            const corpoTabelaLeads = document.getElementById("tabela-leads");
+            corpoTabelaLeads.innerHTML = "";
+
+            if (data.error === "Autenticação falhou") {
+              mostrarMensagem("Nome de agente ou senha inválidos. Tente novamente.");
+              document.getElementById("login").style.display = "block";
+              document.getElementById("painel").style.display = "none";
+              localStorage.removeItem("agente");
+              document.getElementById("agente").value = "";
+              document.getElementById("senha").value = "";
+              document.getElementById("agente").focus();
+              return;
+            }
+
+            if (data.length === 0) {
+              const row = document.createElement("tr");
+              row.innerHTML = `<td colspan="4">Nenhum lead encontrado para o agente "${agente}".</td>`; /* Colspan ajustado */
+              corpoTabelaLeads.appendChild(row);
+            } else {
+              data.forEach(lead => {
+                const row = document.createElement("tr");
+                const nome = lead.nome ? String(lead.nome) : '';
+                const telefone = lead.telefone ? String(lead.telefone) : '';
+                const status = lead.status ? String(lead.status) : '';
+
+                row.innerHTML = `
+                  <td>${nome}</td>
+                  <td>${telefone}</td>
+                  <td>${status}</td>
+                  <td>
+                    <button class="status-button" onclick="marcarComoPago('${nome}', '${telefone}', '${agente}')">Marcar como Pago</button>
+                  </td>
+                `;
+                corpoTabelaLeads.appendChild(row);
+              });
+            }
+          })
+          .catch(err => {
+            mostrarMensagem("Erro ao carregar leads. Por favor, verifique a URL do Apps Script e as permissões. Detalhes: " + err.message);
+            console.error("Erro no fetch:", err); 
+            document.getElementById("login").style.display = "block"; 
+            document.getElementById("painel").style.display = "none";
+            localStorage.removeItem("agente");
+            document.getElementById("agente").value = "";
+            document.getElementById("senha").value = "";
+          });
+      }
+
+      /**
+       * Marca o status de um lead como "Pago" na planilha.
+       * @param {string} nomeLead - O nome do lead a ser atualizado.
+       * @param {string} telefoneLead - O telefone do lead a ser atualizado (para ajudar a identificar um lead único).
+       * @param {string} agenteResponsavel - O nome do agente logado.
+       */
+      function marcarComoPago(nomeLead, telefoneLead, agenteResponsavel) {
+        // Confirmação antes de atualizar
+        if (!confirm(`Tem certeza que deseja marcar o lead "${nomeLead}" (${telefoneLead}) como PAGO?`)) {
+            return; // Sai se o usuário cancelar
+        }
+
+        const novoStatus = "Pago"; // O novo status desejado
+        const payload = {
+          action: "updateStatus", // Ação para o Apps Script saber o que fazer
+          nome: nomeLead,
+          telefone: telefoneLead,
+          novoStatus: novoStatus,
+          agente: agenteResponsavel // Passa o agente para verificar na atualização
+        };
+
+        fetch(APPS_SCRIPT_URL, {
+          method: 'POST', // Agora usaremos POST para enviar dados
+          headers: {
+            'Content-Type': 'application/json' // Indicando que estamos enviando JSON
+          },
+          body: JSON.stringify(payload) // Converte o objeto JavaScript para JSON
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Erro de rede ou servidor ao atualizar status: ${response.status} ${response.statusText}`);
+          }
+          return response.json();
+        })
+        .then(result => {
+          if (result.success) {
+            mostrarMensagem("Status atualizado para 'Pago' com sucesso!");
+            // Após a atualização, recarrega o painel para mostrar o status atualizado
+            const agenteAtual = localStorage.getItem("agente");
+            const senhaAtual = document.getElementById("senha").value; // Precisa pegar a senha novamente para recarregar
+            if (agenteAtual && senhaAtual) {
+              mostrarPainel(agenteAtual, senhaAtual);
+            } else {
+              // Se não tiver senha, exibe a tela de login
+              document.getElementById("login").style.display = "block";
+              document.getElementById("painel").style.display = "none";
+            }
+          } else {
+            mostrarMensagem("Erro ao atualizar status: " + result.message);
+          }
+        })
+        .catch(error => {
+          mostrarMensagem("Erro na requisição para atualizar status: " + error.message);
+          console.error("Erro no POST:", error);
+        });
+      }
+
+      /**
+       * Função para exibir uma mensagem personalizada (substitui alert()).
+       * @param {string} message - A mensagem a ser exibida.
+       */
+      function mostrarMensagem(message) {
+        alert(message); 
+      }
+
+      // Quando a página é carregada, tenta fazer login automático se o agente foi salvo.
+      window.onload = () => {
+        const agenteSalvo = localStorage.getItem("agente");
+        if (agenteSalvo) {
+          document.getElementById("agente").value = agenteSalvo; 
+          document.getElementById("senha").focus();
+        }
+      };
+    </script>
+  </body>
+</html>
